@@ -212,10 +212,6 @@
             overflow: hidden;
             position: relative;
         }
-        /* В режиме сравнения показываем две панели кода */
-        .main.compare-mode {
-            /* ничего не меняем, JS управляет панелями */
-        }
 
         .panel {
             display: flex;
@@ -305,7 +301,7 @@
             color: var(--text-secondary);
             font-family: var(--mono);
             font-size: 13px;
-            line-height: 1.65;
+            line-height: 21.45px;
             padding: 12px 0;
             text-align: right;
             overflow: hidden;
@@ -315,6 +311,8 @@
         .line-numbers span {
             display: block;
             padding-right: 8px;
+            height: 21.45px;
+            line-height: 21.45px;
             transition: all 0.15s;
         }
         .line-numbers span.highlighted {
@@ -338,7 +336,7 @@
             color: var(--text);
             font-family: var(--mono);
             font-size: 13px;
-            line-height: 1.65;
+            line-height: 21.45px;
             padding: 12px 14px;
             border: none;
             outline: none;
@@ -356,8 +354,8 @@
             background: var(--highlight);
             pointer-events: none;
             z-index: 1;
-            transition: top 0.12s ease;
             border-left: 3px solid var(--accent);
+            display: none;
         }
         .panel-compare .highlight-overlay {
             background: var(--highlight-compare);
@@ -378,9 +376,6 @@
         }
         .preview-container.inspecting {
             cursor: crosshair;
-        }
-        .preview-container.inspecting iframe {
-            pointer-events: auto;
         }
 
         /* Разделители */
@@ -487,7 +482,6 @@
             background: #6c7086;
         }
 
-        /* Анимация для подсветки */
         @keyframes pulse-highlight {
             0%,
             100% {
@@ -501,7 +495,6 @@
             animation: pulse-highlight 0.8s ease-out;
         }
 
-        /* Медиа-запрос для маленьких экранов */
         @media (max-width: 800px) {
             .main {
                 flex-direction: column;
@@ -522,17 +515,14 @@
 </head>
 <body>
 
-    <!-- Шапка с вкладками -->
     <div class="header" id="header">
         <div class="tabs-container" id="tabsContainer"></div>
         <button class="add-tab-btn" id="addTabBtn" title="Новая вкладка">+</button>
         <button class="btn compare" id="btnCompare" title="Режим сравнения: открыть второй код рядом">⇔ Сравнить</button>
-        <button class="btn open-window" id="btnOpenWindow" title="Открыть результат в отдельном окне браузера">↗ В новом окне</button>
+        <button class="btn open-window" id="btnOpenWindow" title="Открыть результат в новом окне браузера">↗ В новом окне</button>
     </div>
 
-    <!-- Основная область -->
     <div class="main" id="mainContainer">
-        <!-- Панель редактора кода (основная) -->
         <div class="panel panel-left" id="panelLeft">
             <div class="panel-header">
                 <span>📝 Код</span>
@@ -540,16 +530,14 @@
             </div>
             <div class="code-editor-wrapper" id="codeEditorWrapper">
                 <div class="line-numbers" id="lineNumbers"></div>
-                <div class="highlight-overlay" id="highlightOverlay" style="display:none;"></div>
+                <div class="highlight-overlay" id="highlightOverlay"></div>
                 <textarea class="code-textarea" id="codeTextarea" spellcheck="false"
             placeholder="Введите HTML код здесь..."></textarea>
         </div>
     </div>
 
-    <!-- Разделитель 1 -->
     <div class="resizer" id="resizer1"></div>
 
-    <!-- Панель сравнения (скрыта по умолчанию) -->
     <div class="panel panel-compare" id="panelCompare">
         <div class="panel-header">
             <span>📝 Код для сравнения</span>
@@ -557,25 +545,23 @@
         </div>
         <div class="code-editor-wrapper" id="compareEditorWrapper">
             <div class="line-numbers" id="compareLineNumbers"></div>
-            <div class="highlight-overlay" id="compareHighlightOverlay" style="display:none;"></div>
+            <div class="highlight-overlay" id="compareHighlightOverlay"></div>
             <textarea class="code-textarea" id="compareTextarea" spellcheck="false"
         placeholder="Выберите вкладку для сравнения..."></textarea>
     </div>
 </div>
 
-<!-- Разделитель 2 -->
 <div class="resizer resizer-compare" id="resizer2"></div>
 
-<!-- Панель предпросмотра -->
 <div class="panel panel-right" id="panelRight">
     <div class="preview-toolbar">
         <button class="btn-preview" id="btnRefresh" title="Обновить предпросмотр (Ctrl+S)">🔄 Обновить</button>
-        <button class="btn-preview" id="btnInspect" title="Режим инспектора: кликните на элемент в предпросмотре (Ctrl+I)">🔍 Инспектор</button>
+        <button class="btn-preview" id="btnInspect" title="Режим инспектора (Ctrl+I)">🔍 Инспектор</button>
         <button class="btn-preview" id="btnOpenWindow2" title="Открыть в новом окне">↗ В окне</button>
         <span class="preview-url" id="previewUrl">песочница</span>
     </div>
     <div class="preview-container" id="previewContainer">
-        <iframe id="previewFrame" sandbox="allow-scripts allow-same-origin" title="Предпросмотр"></iframe>
+        <iframe id="previewFrame" sandbox="allow-scripts allow-same-origin allow-popups-to-escape-sandbox" title="Предпросмотр"></iframe>
     </div>
     <div class="inspector-tooltip" id="inspectorTooltip"></div>
 </div>
@@ -583,7 +569,9 @@
 
 <script>
     (() => {
-        // ==================== СОСТОЯНИЕ ====================
+        // Константа высоты строки — должна совпадать с CSS (line-height)
+        const LINE_HEIGHT = 21.45;
+
         const state = {
             tabs: [],
             activeTabId: null,
@@ -596,7 +584,6 @@
             previewBlobUrl: null,
         };
 
-        // ==================== DOM ====================
         const tabsContainer = document.getElementById('tabsContainer');
         const addTabBtn = document.getElementById('addTabBtn');
         const codeTextarea = document.getElementById('codeTextarea');
@@ -620,7 +607,6 @@
         const panelLeft = document.getElementById('panelLeft');
         const panelRight = document.getElementById('panelRight');
 
-        // ==================== ДЕМО-КОД ====================
         function getDemoCode() {
             return `<!DOCTYPE html>
         <html lang="ru">
@@ -642,16 +628,8 @@
         margin-bottom: 16px;
         border: 1px solid #e5e7eb;
         }
-        .card h2 {
-        margin: 0 0 6px 0;
-        color: #1f2937;
-        font-size: 20px;
-        }
-        .card p {
-        color: #6b7280;
-        line-height: 1.65;
-        margin: 0 0 12px 0;
-        }
+        .card h2 { margin: 0 0 6px 0; color: #1f2937; font-size: 20px; }
+        .card p { color: #6b7280; line-height: 1.65; margin: 0 0 12px 0; }
         .badge {
         display: inline-block;
         padding: 4px 12px;
@@ -670,12 +648,9 @@
         border-radius: 8px;
         cursor: pointer;
         font-size: 14px;
-        font-weight: 500;
         transition: background 0.2s;
         }
-        button:hover {
-        background: #6d28d9;
-        }
+        button:hover { background: #6d28d9; }
         </style>
         </head>
         <body>
@@ -683,12 +658,12 @@
         <span class="badge">Новое</span>
         <span class="badge">2026</span>
         <h2>Заголовок карточки</h2>
-        <p>Кликните на любой элемент в режиме инспектора, чтобы найти его строку в коде.</p>
+        <p>Кликните на элемент в режиме инспектора — строка подсветится ровно.</p>
         <button>Нажми меня</button>
         </div>
         <div class="card">
         <h2>Вторая карточка</h2>
-        <p>Здесь другой контент для тестирования.</p>
+        <p>Другой контент для тестирования.</p>
         </div>
         </body>
         </html>`;
@@ -716,16 +691,8 @@
         margin-bottom: 16px;
         border: 1px solid #4b5563;
         }
-        .card h2 {
-        margin: 0 0 6px 0;
-        color: #f9fafb;
-        font-size: 20px;
-        }
-        .card p {
-        color: #d1d5db;
-        line-height: 1.65;
-        margin: 0 0 12px 0;
-        }
+        .card h2 { margin: 0 0 6px 0; color: #f9fafb; font-size: 20px; }
+        .card p { color: #d1d5db; line-height: 1.65; margin: 0 0 12px 0; }
         .badge {
         display: inline-block;
         padding: 4px 12px;
@@ -747,9 +714,7 @@
         font-weight: 600;
         transition: background 0.2s;
         }
-        button:hover {
-        background: #34d399;
-        }
+        button:hover { background: #34d399; }
         </style>
         </head>
         <body>
@@ -757,14 +722,13 @@
         <span class="badge">Тёмная тема</span>
         <span class="badge">v2</span>
         <h2>Та же структура, другой стиль</h2>
-        <p>Сравните этот вариант с оригиналом — видна разница в CSS.</p>
+        <p>Сравните этот вариант с оригиналом.</p>
         <button>Нажми меня</button>
         </div>
         </body>
         </html>`;
         }
 
-        // ==================== ИНИЦИАЛИЗАЦИЯ ====================
         function init() {
             const tab1 = createTab('Пример 1 (светлый)', getDemoCode());
             const tab2 = createTab('Пример 2 (тёмный)', getDemoCode2());
@@ -774,7 +738,6 @@
             renderTabs();
             switchToTab(tab1.id);
 
-            // Обработчики
             addTabBtn.addEventListener('click', addNewTab);
             codeTextarea.addEventListener('input', () => onCodeInput(codeTextarea, 'active'));
             codeTextarea.addEventListener('scroll', () => syncScroll(codeTextarea, lineNumbers, highlightOverlay,
@@ -785,6 +748,7 @@
             btnRefresh.addEventListener('click', () => updatePreview());
             btnInspect.addEventListener('click', toggleInspectMode);
             btnCompare.addEventListener('click', toggleCompareMode);
+            // Обе кнопки открывают в новом окне
             btnOpenWindow.addEventListener('click', openInNewWindow);
             btnOpenWindow2.addEventListener('click', openInNewWindow);
             setupResizer(resizer1, panelLeft, panelCompare, 'left');
@@ -793,7 +757,6 @@
             updateLineNumbers(codeTextarea, lineNumbers, 'highlightedLine');
             updatePreview();
 
-            // Горячие клавиши
             document.addEventListener('keydown', (e) => {
                 if ((e.ctrlKey || e.metaKey) && e.key === 's') {
                     e.preventDefault();
@@ -807,17 +770,12 @@
                     e.preventDefault();
                     toggleCompareMode();
                 }
-            });
-
-            // Закрытие инспектора по Escape
-            document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape' && state.isInspecting) {
                     toggleInspectMode();
                 }
             });
         }
 
-        // ==================== ВКЛАДКИ ====================
         function createTab(name, code = '') {
             return {
                 id: 'tab_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
@@ -840,12 +798,10 @@
             const idx = state.tabs.findIndex(t => t.id === tabId);
             if (idx === -1) return;
             state.tabs.splice(idx, 1);
-
             if (state.compareTabId === tabId) {
                 state.compareTabId = null;
                 if (state.isCompareMode) toggleCompareMode();
             }
-
             if (state.activeTabId === tabId) {
                 const newIdx = Math.min(idx, state.tabs.length - 1);
                 state.activeTabId = state.tabs[newIdx].id;
@@ -857,24 +813,21 @@
         function switchToTab(tabId) {
             const tab = state.tabs.find(t => t.id === tabId);
             if (!tab) return;
-
-            // Сохраняем текущий код
             saveCurrentTabCode();
             state.activeTabId = tabId;
-
             codeTextarea.value = tab.code;
-            updateLineNumbers(codeTextarea, lineNumbers, 'highlightedLine');
             state.highlightedLine = null;
             highlightOverlay.style.display = 'none';
+            updateLineNumbers(codeTextarea, lineNumbers, 'highlightedLine');
             updatePreview();
             renderTabs();
             codeTextarea.focus();
-
-            // Если режим сравнения активен, обновляем и панель сравнения
             if (state.isCompareMode && state.compareTabId) {
                 const compTab = state.tabs.find(t => t.id === state.compareTabId);
                 if (compTab) {
                     compareTextarea.value = compTab.code;
+                    state.compareHighlightedLine = null;
+                    compareHighlightOverlay.style.display = 'none';
                     updateLineNumbers(compareTextarea, compareLineNumbers, 'compareHighlightedLine');
                 }
             }
@@ -882,14 +835,10 @@
 
         function saveCurrentTabCode() {
             const tab = state.tabs.find(t => t.id === state.activeTabId);
-            if (tab) {
-                tab.code = codeTextarea.value;
-            }
+            if (tab) tab.code = codeTextarea.value;
             if (state.compareTabId) {
                 const compTab = state.tabs.find(t => t.id === state.compareTabId);
-                if (compTab) {
-                    compTab.code = compareTextarea.value;
-                }
+                if (compTab) compTab.code = compareTextarea.value;
             }
         }
 
@@ -922,20 +871,15 @@
                     <span class="tab-name" title="${escapeHtml(tab.name)}">${escapeHtml(tab.name)}</span>
                     <button class="tab-close" data-close="${tab.id}">&times;</button>
                 `;
-
-                // Клик — переключение
                 el.addEventListener('click', (e) => {
                     if (e.target.closest('.tab-close')) return;
                     if (e.shiftKey || e.ctrlKey || e.metaKey) {
-                        // Shift+клик — выбор для сравнения
                         e.preventDefault();
                         setCompareTab(tab.id);
                     } else {
                         switchToTab(tab.id);
                     }
                 });
-
-                // Правый клик — контекстное меню
                 el.addEventListener('contextmenu', (e) => {
                     e.preventDefault();
                     const menu = document.createElement('div');
@@ -946,80 +890,55 @@
                         box-shadow: 0 8px 24px rgba(0,0,0,0.5); font-size: 13px;
                     `;
                     menu.innerHTML = `
-                        <div style="padding: 8px 16px; cursor: pointer; hover:bg:#3f3f5e;" 
-                             onmouseover="this.style.background='#3f3f5e'" 
-                             onmouseout="this.style.background=''"
-                             id="menu-compare">⇔ Сравнить с этим</div>
-                        <div style="padding: 8px 16px; cursor: pointer;" 
-                             onmouseover="this.style.background='#3f3f5e'" 
-                             onmouseout="this.style.background=''"
-                             id="menu-rename">✏ Переименовать</div>
+                        <div style="padding: 8px 16px; cursor: pointer;" id="menu-compare">⇔ Сравнить с этим</div>
+                        <div style="padding: 8px 16px; cursor: pointer;" id="menu-rename">✏ Переименовать</div>
                     `;
                     document.body.appendChild(menu);
-
-                    menu.querySelector('#menu-compare').addEventListener('click', () => {
-                        setCompareTab(tab.id);
-                        menu.remove();
-                    });
+                    menu.querySelector('#menu-compare').addEventListener('click', () => { setCompareTab(tab
+                            .id);
+                        menu.remove(); });
                     menu.querySelector('#menu-rename').addEventListener('click', () => {
                         const newName = prompt('Новое имя:', tab.name);
-                        if (newName && newName.trim()) {
-                            tab.name = newName.trim();
-                            renderTabs();
-                        }
+                        if (newName && newName.trim()) { tab.name = newName.trim();
+                            renderTabs(); }
                         menu.remove();
                     });
-
-                    const closeMenu = (ev) => {
-                        if (!menu.contains(ev.target)) { menu.remove();
-                            document.removeEventListener('click', closeMenu); }
-                    };
+                    const closeMenu = (ev) => { if (!menu.contains(ev.target)) { menu.remove();
+                            document.removeEventListener('click', closeMenu); } };
                     setTimeout(() => document.addEventListener('click', closeMenu), 10);
                 });
-
-                // Закрытие
-                el.querySelector('.tab-close').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    closeTab(tab.id);
-                });
-
-                // Двойной клик — переименование
+                el.querySelector('.tab-close').addEventListener('click', (e) => { e.stopPropagation();
+                    closeTab(tab.id); });
                 el.addEventListener('dblclick', (e) => {
                     if (e.target.closest('.tab-close')) return;
-                    const newName = prompt('Новое имя вкладки:', tab.name);
-                    if (newName && newName.trim()) {
-                        tab.name = newName.trim();
-                        renderTabs();
-                    }
+                    const newName = prompt('Новое имя:', tab.name);
+                    if (newName && newName.trim()) { tab.name = newName.trim();
+                        renderTabs(); }
                 });
-
                 tabsContainer.appendChild(el);
             });
         }
 
         function setCompareTab(tabId) {
             if (tabId === state.activeTabId) {
-                alert('Нельзя сравнивать вкладку саму с собой. Выберите другую вкладку.');
+                alert('Нельзя сравнивать вкладку саму с собой.');
                 return;
             }
             state.compareTabId = tabId;
             const tab = state.tabs.find(t => t.id === tabId);
             if (tab) {
                 compareTextarea.value = tab.code;
+                state.compareHighlightedLine = null;
+                compareHighlightOverlay.style.display = 'none';
                 updateLineNumbers(compareTextarea, compareLineNumbers, 'compareHighlightedLine');
             }
-            if (!state.isCompareMode) {
-                toggleCompareMode();
-            }
+            if (!state.isCompareMode) toggleCompareMode();
             renderTabs();
         }
 
-        // ==================== РЕЖИМ СРАВНЕНИЯ ====================
         function toggleCompareMode() {
             state.isCompareMode = !state.isCompareMode;
-
             if (state.isCompareMode) {
-                // Выбираем вкладку для сравнения если ещё не выбрана
                 if (!state.compareTabId) {
                     const otherTab = state.tabs.find(t => t.id !== state.activeTabId);
                     if (otherTab) {
@@ -1028,7 +947,7 @@
                         updateLineNumbers(compareTextarea, compareLineNumbers, 'compareHighlightedLine');
                     } else {
                         state.isCompareMode = false;
-                        alert('Нужно минимум 2 вкладки для сравнения.');
+                        alert('Нужно минимум 2 вкладки.');
                         return;
                     }
                 }
@@ -1036,7 +955,6 @@
                 btnCompare.classList.add('active');
                 btnCompare.textContent = '⇔ Сравнение: Вкл';
                 document.getElementById('mainContainer').classList.add('compare-mode');
-                // Перераспределяем ширину
                 panelLeft.style.flex = '1';
                 panelLeft.style.width = '';
                 panelCompare.style.flex = '1';
@@ -1051,7 +969,6 @@
                 state.compareHighlightedLine = null;
                 compareHighlightOverlay.style.display = 'none';
                 updateLineNumbers(compareTextarea, compareLineNumbers, 'compareHighlightedLine');
-                // Восстанавливаем ширину
                 panelLeft.style.flex = '1';
                 panelLeft.style.width = '';
                 panelRight.style.flex = '1';
@@ -1060,7 +977,7 @@
             renderTabs();
         }
 
-        // ==================== НУМЕРАЦИЯ СТРОК И ПОДСВЕТКА ====================
+        // ==================== НУМЕРАЦИЯ СТРОК И ПОДСВЕТКА (ИСПРАВЛЕНО) ====================
         function updateLineNumbers(textarea, numbersEl, highlightKey) {
             const lines = textarea.value.split('\n');
             const count = Math.max(lines.length, 1);
@@ -1071,16 +988,17 @@
                 html += `<span class="${cls}">${i + 1}</span>`;
             }
             numbersEl.innerHTML = html;
-            updateHighlightPosition(textarea, numbersEl, highlightKey);
+            updateHighlightPosition(textarea, highlightKey);
         }
 
-        function updateHighlightPosition(textarea, numbersEl, highlightKey) {
+        function updateHighlightPosition(textarea, highlightKey) {
             const hl = state[highlightKey];
             const overlay = (highlightKey === 'highlightedLine') ? highlightOverlay : compareHighlightOverlay;
             if (hl !== null && hl >= 0) {
-                const lineHeight = 21.45;
+                const lineHeight = LINE_HEIGHT;
                 const scrollTop = textarea.scrollTop;
-                const top = hl * lineHeight - scrollTop;
+                // Позиция строки с учётом padding-top (12px) и её номера
+                const top = 12 + hl * lineHeight - scrollTop;
                 overlay.style.display = 'block';
                 overlay.style.top = top + 'px';
             } else {
@@ -1090,7 +1008,7 @@
 
         function syncScroll(textarea, numbersEl, overlay, highlightKey) {
             numbersEl.scrollTop = textarea.scrollTop;
-            updateHighlightPosition(textarea, numbersEl, highlightKey);
+            updateHighlightPosition(textarea, highlightKey);
         }
 
         function highlightLine(lineIndex, isCompare = false) {
@@ -1106,11 +1024,10 @@
         }
 
         function scrollToLine(textarea, lineIndex) {
-            const lineHeight = 21.45;
-            const targetY = lineIndex * lineHeight;
+            const targetY = 12 + lineIndex * LINE_HEIGHT;
             const visibleStart = textarea.scrollTop;
             const visibleEnd = visibleStart + textarea.clientHeight;
-            if (targetY < visibleStart + lineHeight || targetY > visibleEnd - lineHeight * 2) {
+            if (targetY < visibleStart + LINE_HEIGHT || targetY > visibleEnd - LINE_HEIGHT * 2) {
                 textarea.scrollTop = targetY - textarea.clientHeight / 3;
             }
         }
@@ -1122,19 +1039,12 @@
             const processedCode = injectSourceMapping(code);
             const blob = new Blob([processedCode], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
-
             if (state.previewBlobUrl) URL.revokeObjectURL(state.previewBlobUrl);
             state.previewBlobUrl = url;
-
             previewFrame.src = url;
             previewFrame._blobUrl = url;
-
             document.getElementById('previewUrl').textContent = 'песочница • обновлено';
-            setTimeout(() => {
-                document.getElementById('previewUrl').textContent = 'песочница';
-            }, 1500);
-
-            // Если режим инспектора был включен, перевключаем
+            setTimeout(() => { document.getElementById('previewUrl').textContent = 'песочница'; }, 1500);
             if (state.isInspecting) {
                 setTimeout(() => sendToFrame({ type: 'inspector-mode', enabled: true }), 300);
             }
@@ -1143,10 +1053,8 @@
         function injectSourceMapping(htmlCode) {
             const lines = htmlCode.split('\n');
             const resultLines = [];
-
             for (let i = 0; i < lines.length; i++) {
                 let line = lines[i];
-                // Ищем открывающие теги
                 line = line.replace(/<(\w+)(\s[^>]*?)?(?<!\/)>/g, (match, tagName, attrs) => {
                     if (match.includes('data-source-line=')) return match;
                     if (match.startsWith('</')) return match;
@@ -1155,14 +1063,12 @@
                 });
                 resultLines.push(line);
             }
-
             const result = resultLines.join('\n');
             const inspectorScript = `
         <script>
         (function() {
         if (window.__inspectorInstalled) return;
         window.__inspectorInstalled = true;
-
         window.addEventListener('message', function(event) {
         if (!event.data || event.data.type !== 'inspector-mode') return;
         if (event.data.enabled) {
@@ -1177,7 +1083,6 @@
         document.removeEventListener('mouseout', inspectorOutHandler, true);
         }
         });
-
         function findSourceLine(element) {
         let el = element;
         while (el && el !== document.body && el !== document.documentElement) {
@@ -1188,7 +1093,6 @@
         }
         return null;
         }
-
         function inspectorClickHandler(e) {
         e.preventDefault();
         e.stopPropagation();
@@ -1203,7 +1107,6 @@
         }, '*');
         }
         }
-
         function inspectorHoverHandler(e) {
         e.stopPropagation();
         const line = findSourceLine(e.target);
@@ -1215,20 +1118,13 @@
         tag: e.target.tagName.toLowerCase(),
         id: e.target.id || '',
         classes: Array.from(e.target.classList).join(' '),
-        rect: {
-        top: rect.top,
-        left: rect.left,
-        width: rect.width,
-        height: rect.height,
-        },
+        rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
         }, '*');
         } else {
         window.parent.postMessage({ type: 'element-unhovered' }, '*');
         }
         }
-
         function inspectorOutHandler(e) {
-        // Не скрываем мгновенно, даём следующему hover сработать
         setTimeout(() => {
         if (!document.querySelector(':hover')) {
         window.parent.postMessage({ type: 'element-unhovered' }, '*');
@@ -1237,7 +1133,6 @@
         }
         })();
         <\/script>`;
-
             if (result.includes('</body>')) {
                 return result.replace('</body>', inspectorScript + '\n</body>');
             } else {
@@ -1245,10 +1140,8 @@
             }
         }
 
-        // ==================== РЕЖИМ ИНСПЕКТОРА ====================
         function toggleInspectMode() {
             state.isInspecting = !state.isInspecting;
-
             if (state.isInspecting) {
                 btnInspect.classList.add('active');
                 previewContainer.classList.add('inspecting');
@@ -1261,8 +1154,8 @@
                 modeIndicator.textContent = 'Обычный режим';
                 modeIndicator.classList.remove('active');
                 state.highlightedLine = null;
-                updateLineNumbers(codeTextarea, lineNumbers, 'highlightedLine');
                 highlightOverlay.style.display = 'none';
+                updateLineNumbers(codeTextarea, lineNumbers, 'highlightedLine');
                 sendToFrame({ type: 'inspector-mode', enabled: false });
                 inspectorTooltip.style.display = 'none';
             }
@@ -1274,65 +1167,79 @@
             }
         }
 
-        // Слушаем сообщения от iframe
         window.addEventListener('message', (event) => {
             if (!state.isInspecting) return;
             const data = event.data;
             if (!data || !data.type) return;
-
             if (data.type === 'element-clicked') {
                 highlightLine(data.line, false);
                 btnInspect.classList.add('pulse');
                 setTimeout(() => btnInspect.classList.remove('pulse'), 800);
             }
-
             if (data.type === 'element-hovered') {
                 const tagInfo = data.tag + (data.id ? '#' + data.id : '') +
                     (data.classes ? '.' + data.classes.replace(/\s+/g, '.') : '');
                 inspectorTooltip.textContent = `<${tagInfo}> → строка ${data.line + 1}`;
                 inspectorTooltip.style.display = 'block';
-
                 const iframeRect = previewFrame.getBoundingClientRect();
                 const tooltipX = iframeRect.left + data.rect.left;
                 const tooltipY = iframeRect.top + data.rect.top - 30;
                 inspectorTooltip.style.left = Math.max(5, tooltipX) + 'px';
                 inspectorTooltip.style.top = Math.max(5, tooltipY) + 'px';
-
                 highlightLine(data.line, false);
             }
-
             if (data.type === 'element-unhovered') {
                 inspectorTooltip.style.display = 'none';
                 state.highlightedLine = null;
-                updateLineNumbers(codeTextarea, lineNumbers, 'highlightedLine');
                 highlightOverlay.style.display = 'none';
+                updateLineNumbers(codeTextarea, lineNumbers, 'highlightedLine');
             }
         });
 
-        // ==================== ОТКРЫТЬ В НОВОМ ОКНЕ ====================
+        // ==================== ОТКРЫТЬ В НОВОМ ОКНЕ (ИСПРАВЛЕНО) ====================
         function openInNewWindow() {
             saveCurrentTabCode();
             const code = codeTextarea.value;
-            const processedCode = injectSourceMapping(code);
-            const blob = new Blob([processedCode], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
-            const win = window.open(url, '_blank', 'width=900,height=700,scrollbars=yes');
 
-            // Освобождаем URL после загрузки окна
-            if (win) {
-                win.addEventListener('load', () => {
-                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+            // Берём исходный код пользователя БЕЗ инжектирования data-source-line и скрипта инспектора
+            // Чтобы окно открылось с чистым пользовательским HTML
+            const blob = new Blob([code], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+
+            // Открываем в новом окне
+            const newWindow = window.open(url, '_blank', 'width=1024,height=768,scrollbars=yes,resizable=yes');
+
+            if (newWindow) {
+                // Освобождаем URL после загрузки
+                newWindow.addEventListener('beforeunload', () => {
+                    URL.revokeObjectURL(url);
                 });
+                // На случай если окно не закроется долго — очищаем через 30 секунд
+                setTimeout(() => {
+                    try { URL.revokeObjectURL(url); } catch (e) { /* уже очищен */ }
+                }, 30000);
             } else {
-                alert('Не удалось открыть новое окно. Возможно, блокировщик всплывающих окон мешает.');
+                // Если всплывающее окно заблокировано, пробуем открыть в текущей вкладке
+                const fallback = confirm(
+                    'Браузер заблокировал всплывающее окно.\n\nНажмите "ОК" чтобы открыть результат в новой вкладке.'
+                );
+                if (fallback) {
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.target = '_blank';
+                    a.rel = 'noopener';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    setTimeout(() => URL.revokeObjectURL(url), 30000);
+                }
             }
         }
 
-        // ==================== РАЗДЕЛИТЕЛИ ПАНЕЛЕЙ ====================
+        // ==================== РАЗДЕЛИТЕЛИ ====================
         function setupResizer(resizerEl, leftPanel, rightPanel, side) {
             let isResizing = false;
             let startX, startLeftWidth, startRightWidth;
-
             resizerEl.addEventListener('mousedown', (e) => {
                 isResizing = true;
                 resizerEl.classList.add('active');
@@ -1342,7 +1249,6 @@
                 document.body.style.cursor = 'col-resize';
                 document.body.style.userSelect = 'none';
             });
-
             document.addEventListener('mousemove', (e) => {
                 if (!isResizing) return;
                 const delta = e.clientX - startX;
@@ -1351,7 +1257,6 @@
                 const newRightWidth = startRightWidth - delta;
                 const leftPercent = (newLeftWidth / totalWidth) * 100;
                 const rightPercent = (newRightWidth / totalWidth) * 100;
-
                 if (leftPercent > 15 && rightPercent > 15) {
                     leftPanel.style.flex = 'none';
                     leftPanel.style.width = leftPercent + '%';
@@ -1359,7 +1264,6 @@
                     rightPanel.style.width = rightPercent + '%';
                 }
             });
-
             document.addEventListener('mouseup', () => {
                 if (isResizing) {
                     isResizing = false;
@@ -1370,24 +1274,21 @@
             });
         }
 
-        // ==================== УТИЛИТЫ ====================
         function escapeHtml(str) {
             const div = document.createElement('div');
             div.textContent = str;
             return div.innerHTML;
         }
 
-        // ==================== ЗАПУСК ====================
         init();
 
-        console.log('🚀 HTML Playground v2 готов!');
+        console.log('🚀 HTML Playground v3 готов!');
+        console.log('  ✅ Подсветка строк исправлена — строка и номер совпадают');
+        console.log('  ✅ "Открыть в новом окне" — работает через Blob URL');
         console.log('  📝 Ctrl+S — обновить предпросмотр');
         console.log('  🔍 Ctrl+I — режим инспектора');
         console.log('  ⇔ Ctrl+B — режим сравнения');
-        console.log('  ↗ Кнопка "В новом окне" — открыть результат в отдельном окне браузера');
-        console.log('  💡 Shift+клик по вкладке — выбрать для сравнения');
-        console.log('  💡 Правый клик по вкладке — контекстное меню');
-        console.log('  💡 В режиме инспектора кликните на элемент в предпросмотре → подсветится строка в коде');
+        console.log('  Esc — выйти из инспектора');
     })();
 </script>
 </body>
